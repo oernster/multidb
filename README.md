@@ -1,31 +1,31 @@
 # Multidimensional JSON NoSQL REST API
 
-A FastAPI-powered REST server that stores **N-dimensional JSON data** inside a single JSON file.  
+A FastAPI-powered REST server that stores N-dimensional JSON data inside a single JSON file.  
 You can initialize the database with any number of dimensions and read/write values using coordinates.
 
 ---
 
-## 🚀 Features
-- JSON file–based NoSQL-style storage  
-- Arbitrary **N-dimensional** hierarchical keys  
-- REST API for CRUD + slicing  
-- Auto-generated **Swagger UI** (`/docs`)  
-- Auto-generated **ReDoc** (`/redoc`)  
+## Features
+- JSON file–based NoSQL-style storage
+- Arbitrary N-dimensional hierarchical keys
+- REST API for CRUD and slicing
+- Auto-generated Swagger UI (`/docs`)
+- Auto-generated ReDoc (`/redoc`)
 
 ---
 
-# 🔧 Installation
+# Installation
 
 ## 1. Create a virtual environment
 
-### **Windows (PowerShell)**
+### Windows (PowerShell)
 
 ```powershell
 python -m venv venv
 venv\Scripts\activate
 ```
 
-### **Linux / macOS / WSL**
+### Linux / macOS / WSL
 
 ```bash
 python3 -m venv venv
@@ -51,7 +51,7 @@ uvicorn
 
 ---
 
-# ▶️ Running the Server
+# Running the Server
 
 Inside the project folder:
 
@@ -59,7 +59,7 @@ Inside the project folder:
 uvicorn app:app --reload
 ```
 
-Server will start at:
+The server will start at:
 
 ```
 http://localhost:8000
@@ -67,32 +67,32 @@ http://localhost:8000
 
 ---
 
-# 📘 API Documentation
+# API Documentation
 
 FastAPI automatically exposes interactive documentation:
 
-### **Swagger UI (interactive)**
+### Swagger UI (interactive)
 ```
 http://localhost:8000/docs
 ```
 
-### **ReDoc (static reference docs)**
+### ReDoc (static reference docs)
 ```
 http://localhost:8000/redoc
 ```
 
 ---
 
-# 🧪 Typical API Usage
+# Typical API Usage
 
-### **Initialize DB with N dimensions**
+### Initialize DB with N dimensions
 ```bash
 curl -X POST http://localhost:8000/init   -H "Content-Type: application/json"   -d '{"dimensions": 3}'
 ```
 
 ---
 
-### **Set a value at 3D coordinate**
+### Set a value at a 3D coordinate
 ```bash
 curl -X POST http://localhost:8000/item   -H "Content-Type: application/json"   -d '{
         "coords": ["user1", "2025-01-01", "orders"],
@@ -102,28 +102,28 @@ curl -X POST http://localhost:8000/item   -H "Content-Type: application/json"   
 
 ---
 
-### **Get an item**
+### Get an item
 ```bash
 curl "http://localhost:8000/item?coords=user1&coords=2025-01-01&coords=orders"
 ```
 
 ---
 
-### **Slice a prefix**
+### Slice a prefix
 ```bash
 curl -X POST http://localhost:8000/slice   -H "Content-Type: application/json"   -d '{"prefix": ["user1"]}'
 ```
 
 ---
 
-### **Delete an item**
+### Delete an item
 ```bash
 curl -X DELETE http://localhost:8000/item   -H "Content-Type: application/json"   -d '{"coords": ["user1", "2025-01-01", "orders"]}'
 ```
 
 ---
 
-# 📂 Project Structure (recommended)
+# Project Structure (recommended)
 
 ```
 multidb/
@@ -134,4 +134,3 @@ multidb/
 ├─ requirements.txt
 └─ README.md
 ```
-
