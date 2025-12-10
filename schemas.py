@@ -1,6 +1,7 @@
 # schemas.py
 
 from typing import Any, List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -14,7 +15,10 @@ class InitResponse(BaseModel):
 
 
 class SetItemRequest(BaseModel):
-    coords: List[str] = Field(..., description="List of coordinate keys")
+    coords: List[str] = Field(
+        ...,
+        description="Full coordinate list, must match DB dimensions",
+    )
     value: Any
 
 
@@ -30,7 +34,7 @@ class DeleteItemRequest(BaseModel):
 class SliceRequest(BaseModel):
     prefix: List[str] = Field(
         default_factory=list,
-        description="Optional coordinate prefix for slicing"
+        description="Optional coordinate prefix for slicing",
     )
 
 

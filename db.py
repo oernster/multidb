@@ -1,116 +1,130 @@
-# db.py
+"""Database layer for the multidimensional JSON store."""
+
+from __future__ import annotations
 
 import json
 import threading
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List, Dict
+from typing import Any, Dict, List
+
+
+@dataclass(frozen=True)
+class JsonFileStorage:
+    """Simple JSON file storage abstraction.
+
+    This class has a very small responsibility: reading and writing
+    JSON-serialisable dictionaries to a given path.
+    """
+
+    path: Path
+
+    def read(self) -> Dict[str, Any]:
+        if not self.path.exists():
+            raise FileNotFoundError(f"Database file does not exist: {self.path}")
+        raw_text = self.path.read_text(encoding="utf-8")
+        return json.loads(raw_text)
+
+    def write(self, payload: Dict[str, Any]) -> None:
+        self.path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
 
 class JSONMultiDB:
-    """
-    Simple N-dimensional JSON-backed "NoSQL" store.
+    """N-dimensional JSON-backed key/value store.
 
-    The on-disk structure looks like:
-    {
-      "meta": {
-        "dimensions": 3
-      },
-      "data": {
-        "x": {
-          "y": {
-            "z": { ... stored value ... }
-          }
-        }
-      }
-    }
+    Public API:
+
+    * :meth:`create_new`  – create a new database file.
+    * :meth:`get_dimensions`
+    * :meth:`set_value`
+    * :meth:`get_value`
+    * :meth:`delete_value`
+    * :meth:`get_slice`
     """
 
-    def __init__(self, path: Path):
-        self.path = path
+    def __init__(self, path: Path) -> None:
+        self._storage = JsonFileStorage(path=path)
         self._lock = threading.Lock()
+        self._dimensions: int = 0
+        self._data: Dict[str, Any] = {}
         self._load()
 
-    # ---------- Static helpers ----------
+    # --------------------------------------------------------------------- #
+    # Construction helpers
+    # --------------------------------------------------------------------- #
 
     @staticmethod
     def _default_structure(dimensions: int) -> Dict[str, Any]:
-        return {
-            "meta": {"dimensions": dimensions},
-            "data": {}
-        }
+        return {"meta": {"dimensions": dimensions}, "data": {}}
 
     @classmethod
     def create_new(cls, path: Path, dimensions: int) -> "JSONMultiDB":
-        """
-        Create (or overwrite) a DB file with the given number of dimensions.
-        """
+        """Create (or overwrite) a DB file with the given number of dimensions."""
         if dimensions <= 0:
             raise ValueError("dimensions must be a positive integer")
 
+        storage = JsonFileStorage(path=path)
         structure = cls._default_structure(dimensions)
-        path.write_text(json.dumps(structure, indent=2))
-        return cls(path)
+        storage.write(structure)
+        return cls(path=path)
 
-    # ---------- Internal IO helpers ----------
+    # --------------------------------------------------------------------- #
+    # Persistence
+    # --------------------------------------------------------------------- #
 
     def _load(self) -> None:
-        if not self.path.exists():
-            raise FileNotFoundError(f"DB file {self.path} does not exist")
-
-        raw = json.loads(self.path.read_text())
-        self.dimensions: int = int(raw["meta"]["dimensions"])
-        self.data: Dict[str, Any] = raw.get("data", {})
+        raw = self._storage.read()
+        try:
+            self._dimensions = int(raw["meta"]["dimensions"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("Invalid DB file: missing or bad dimensions") from exc
+        self._data = dict(raw.get("data", {}))
 
     def _persist(self) -> None:
-        """
-        Persist current state to disk. Thread-safe.
-        """
-        with self._lock:
-            obj = {
-                "meta": {"dimensions": self.dimensions},
-                "data": self.data,
-            }
-            self.path.write_text(json.dumps(obj, indent=2))
+        payload = self._default_structure(self._dimensions)
+        payload["data"] = self._data
+        self._storage.write(payload)
 
-    # ---------- Public API ----------
+    # --------------------------------------------------------------------- #
+    # Introspection
+    # --------------------------------------------------------------------- #
 
     def get_dimensions(self) -> int:
-        return self.dimensions
+        return self._dimensions
+
+    # --------------------------------------------------------------------- #
+    # Core operations
+    # --------------------------------------------------------------------- #
 
     def set_value(self, coords: List[str], value: Any) -> None:
-        """
-        Set value at an exact N-dimensional coordinate.
-        coords length must equal self.dimensions.
-        """
-        if len(coords) != self.dimensions:
+        """Create or replace a value at the given coordinate."""
+        if len(coords) != self._dimensions:
             raise ValueError(
-                f"Expected {self.dimensions} coordinates, got {len(coords)}"
+                f"Expected {self._dimensions} coordinates, got {len(coords)}"
             )
 
-        node = self.data
-        # Traverse/create all but last level
-        for key in coords[:-1]:
-            if key not in node or not isinstance(node[key], dict):
-                node[key] = {}
-            node = node[key]
+        with self._lock:
+            node: Dict[str, Any] = self._data
+            for key in coords[:-1]:
+                if key not in node or not isinstance(node[key], dict):
+                    node[key] = {}
+                node = node[key]  # type: ignore[assignment]
 
-        # Set leaf value
-        node[coords[-1]] = value
-        self._persist()
+            node[coords[-1]] = value
+            self._persist()
 
     def get_value(self, coords: List[str]) -> Any:
-        """
-        Get value at an exact N-dimensional coordinate.
-        """
-        if len(coords) != self.dimensions:
+        """Retrieve a value at the given coordinate."""
+        if len(coords) != self._dimensions:
             raise ValueError(
-                f"Expected {self.dimensions} coordinates, got {len(coords)}"
+                f"Expected {self._dimensions} coordinates, got {len(coords)}"
             )
 
-        node = self.data
+        node: Dict[str, Any] = self._data
         for key in coords[:-1]:
             if key not in node or not isinstance(node[key], dict):
                 raise KeyError(f"Path not found at key: {key}")
-            node = node[key]
+            node = node[key]  # type: ignore[assignment]
 
         leaf_key = coords[-1]
         if leaf_key not in node:
@@ -119,55 +133,55 @@ class JSONMultiDB:
         return node[leaf_key]
 
     def delete_value(self, coords: List[str]) -> None:
+        """Delete a value at the given coordinate.
+
+        Any now-empty intermediate dictionaries are removed as well.
         """
-        Delete value at an exact N-dimensional coordinate.
-        """
-        if len(coords) != self.dimensions:
+        if len(coords) != self._dimensions:
             raise ValueError(
-                f"Expected {self.dimensions} coordinates, got {len(coords)}"
+                f"Expected {self._dimensions} coordinates, got {len(coords)}"
             )
 
-        node_stack = []
-        node = self.data
+        with self._lock:
+            node: Dict[str, Any] = self._data
+            node_stack: List[Dict[str, Any]] = [node]
 
-        # Traverse and keep track of nodes/keys for cleanup
-        for key in coords[:-1]:
-            if key not in node or not isinstance(node[key], dict):
-                raise KeyError(f"Path not found at key: {key}")
-            node_stack.append((node, key))
-            node = node[key]
+            for key in coords[:-1]:
+                if key not in node or not isinstance(node[key], dict):
+                    raise KeyError(f"Path not found at key: {key}")
+                node = node[key]  # type: ignore[assignment]
+                node_stack.append(node)
 
-        leaf_key = coords[-1]
-        if leaf_key not in node:
-            raise KeyError(f"Leaf key not found: {leaf_key}")
+            leaf_key = coords[-1]
+            if leaf_key not in node:
+                raise KeyError(f"Leaf key not found: {leaf_key}")
+            del node[leaf_key]
 
-        # Delete the leaf
-        del node[leaf_key]
+            # Clean up empty dictionaries from the leaf upwards.
+            for index in range(len(coords) - 2, -1, -1):
+                parent = node_stack[index]
+                key = coords[index]
+                child = parent.get(key)
+                if isinstance(child, dict) and not child:
+                    del parent[key]
+                else:
+                    break
 
-        # Optional cleanup: remove empty dicts on the way back up
-        for parent, k in reversed(node_stack):
-            if isinstance(parent.get(k), dict) and not parent[k]:
-                del parent[k]
-            else:
-                break
-
-        self._persist()
+            self._persist()
 
     def get_slice(self, prefix: List[str]) -> Any:
+        """Return a sub-tree for a given prefix of coordinates.
+
+        The empty prefix returns the entire data tree.
         """
-        Get an entire sub-tree for a partial coordinate prefix.
-        e.g. for dims=3,
-          prefix=["x"] -> return all at x, including y/z...
-          prefix=["x", "y"] -> return all at x->y
-        """
-        if len(prefix) > self.dimensions:
+        if len(prefix) > self._dimensions:
             raise ValueError("Prefix longer than number of dimensions")
 
-        node = self.data
+        node: Any = self._data
         for key in prefix:
-            if key not in node or not isinstance(node[key], dict):
+            if not isinstance(node, dict) or key not in node:
                 raise KeyError(f"Path not found at key: {key}")
             node = node[key]
 
-        # Return a deep-ish copy (JSON-safe)
+        # Defensive copy to prevent accidental mutation of internal state.
         return json.loads(json.dumps(node))
