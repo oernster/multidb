@@ -4,16 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axisdb"
-version = "1.0.0"
+version = "1.0.1"
 description = "Tiny embedded document database for Python with N-dimensional coordinate keys."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Oliver Ernster" }]
 keywords = ["database", "embedded", "json", "storage", "coordinates", "multidimensional"]
+dependencies = ["portalocker>=2.0.0"]
+
 classifiers = [
-  "Development Status :: 4 - Beta",
-  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Operating System :: OS Independent",
@@ -24,7 +25,6 @@ Homepage = "https://github.com/oernster/AxisDB"
 Repository = "https://github.com/oernster/AxisDB"
 Issues = "https://github.com/oernster/AxisDB/issues"
 
-# Optional: install server deps with `pip install "axisdb[server]"`
 [project.optional-dependencies]
 server = ["fastapi", "uvicorn"]
 
@@ -41,14 +41,5 @@ line-length = 88
 target-version = "py311"
 
 [tool.ruff.lint]
-select = [
-  "E", "F", "W",  # pycodestyle + pyflakes
-  "I",            # isort
-  "UP",           # pyupgrade
-  "B",            # flake8-bugbear
-  "SIM",          # flake8-simplify
-]
-ignore = [
-  "E501",         # line length handled by black
-  "B008",         # FastAPI dependency injection uses call expressions in defaults
-]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501", "B008"]
