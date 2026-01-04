@@ -1,24 +1,33 @@
-# Multidimensional JSON NoSQL REST API
+# MultiDimensionalDB
 
-A FastAPI-powered REST server that stores N-dimensional JSON data inside a single JSON file.
+MultiDimensionalDB v2 is a tiny embedded document database for Python.
+
+Key properties:
+
+- Library-first design (usable without any server)
+- Single-file JSON storage
+- Atomic, crash-safe commits via temp-file replace
+- Safe multi-process access (single writer, multiple readers)
+- Minimal indexing and query support (MVP)
 
 > **See also:** [USE_CASES.md](USE_CASES.md) — a concise overview of practical applications and patterns enabled by this multidimensional JSON storage model.  
 You can initialize the database with any number of dimensions and read/write values using coordinates.
 
-### If you like it please buy me a coffee: [Donation link](https://www.paypal.com/ncp/payment/7XYN6DCYK24VY)
+### If you like it please buy me a coffee: [Donation link](https://www.paypal.com/ncp/payment/Z36XJEEA4MNV6)
 
 ---
 
 ## Features
-- JSON file–based NoSQL-style storage
-- Arbitrary N-dimensional hierarchical keys
-- REST API for CRUD and slicing
-- Auto-generated Swagger UI (`/docs`)
-- Auto-generated ReDoc (`/redoc`)
+
+- JSON file-based embedded document database
+- N-dimensional coordinate keys
+- Atomic commit and recovery
+- Prefix key listing and basic querying
+- Optional FastAPI wrapper with Swagger (`/docs`) and ReDoc (`/redoc`)
 
 ---
 
-# Installation
+## Installation
 
 ## 1. Create a virtual environment
 
@@ -38,20 +47,38 @@ source venv/bin/activate
 
 ---
 
-## 2. Install dependencies
+### 2. Install dependencies
 
 From within the activated venv:
 
-```bash
-pip install -r requirements.txt
+This project uses `uv` for environment management.
+
+```powershell
+uv venv .venv
+uv pip install -r requirements.txt --python .venv\Scripts\python.exe
 ```
 
-# Running the Server
+## Library usage (v2)
+
+Create/open a database and commit writes:
+
+```python
+from multidb import MultiDB
+
+db = MultiDB.create("./mydb.json", dimensions=2)
+db.set(("user1", "orders"), {"count": 3})
+db.commit()
+
+ro = MultiDB.open("./mydb.json", mode="r")
+print(ro.get(("user1", "orders")))
+```
+
+## Running the FastAPI wrapper (v2)
 
 Inside the project folder:
 
-```bash
-uvicorn app:app --reload
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn multidb.server.app:app --reload
 ```
 
 The server will start at:
@@ -62,7 +89,7 @@ http://localhost:8000
 
 ---
 
-# API Documentation
+## API Documentation
 
 FastAPI automatically exposes interactive documentation:
 
@@ -78,41 +105,49 @@ http://localhost:8000/redoc
 
 ---
 
-# Typical API Usage
+## Typical API Usage
 
-### Initialize DB with N dimensions
+### Initialize a DB
+
+The FastAPI wrapper uses query parameters for simplicity.
+
 ```bash
-curl -X POST http://localhost:8000/init   -H "Content-Type: application/json"   -d '{"dimensions": 3}'
+curl -X POST "http://localhost:8000/init?path=./mydb.json&dimensions=3&overwrite=true"
 ```
 
 ---
 
-### Set a value at a 3D coordinate
+### Set a value
+
 ```bash
-curl -X POST http://localhost:8000/item   -H "Content-Type: application/json"   -d '{
-        "coords": ["user1", "2025-01-01", "orders"],
-        "value": {"order_id": 123, "amount": 49.99}
-      }'
+curl -X POST "http://localhost:8000/item?path=./mydb.json" \
+  -H "Content-Type: application/json" \
+  -d '{"coords": ["user1", "2025-01-01", "orders"], "value": {"order_id": 123, "amount": 49.99}}'
 ```
 
 ---
 
 ### Get an item
+
 ```bash
-curl "http://localhost:8000/item?coords=user1&coords=2025-01-01&coords=orders"
+curl "http://localhost:8000/item?path=./mydb.json&coords=user1&coords=2025-01-01&coords=orders"
 ```
 
 ---
 
-### Slice a prefix
+### List by prefix
+
 ```bash
-curl -X POST http://localhost:8000/slice   -H "Content-Type: application/json"   -d '{"prefix": ["user1"]}'
+curl "http://localhost:8000/list?path=./mydb.json&prefix=user1"
 ```
 
 ---
 
 ### Delete an item
+
 ```bash
-curl -X DELETE http://localhost:8000/item   -H "Content-Type: application/json"   -d '{"coords": ["user1", "2025-01-01", "orders"]}'
+curl -X DELETE "http://localhost:8000/item?path=./mydb.json" \
+  -H "Content-Type: application/json" \
+  -d '{"coords": ["user1", "2025-01-01", "orders"]}'
 ```
 

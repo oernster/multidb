@@ -1,5 +1,7 @@
 black
 fastapi
 httpx
+portalocker
 pytest
+ruff
 uvicorn

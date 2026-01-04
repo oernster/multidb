@@ -208,3 +208,35 @@ __marimo__/
 
 # Don't push db to git!
 multidimensional_db.json
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+
+# Testing
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Local databases / artifacts (MultiDimensionalDB)
+*.json
+*.json.tmp
+*.writer.lock
+*.rw.lock
