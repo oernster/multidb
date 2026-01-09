@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "axisdb"
-version = "1.0.3"
+version = "1.0.5"
 description = "Tiny embedded document database for Python with N-dimensional coordinate keys."
 readme = "README.md"
 requires-python = ">=3.11"
